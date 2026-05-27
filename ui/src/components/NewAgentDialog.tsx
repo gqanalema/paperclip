@@ -6,6 +6,7 @@ import { useCompany } from "../context/CompanyContext";
 import { accessApi } from "../api/access";
 import { agentsApi } from "../api/agents";
 import { adaptersApi } from "../api/adapters";
+import { apiPath } from "../lib/api-base";
 import { queryKeys } from "@/lib/queryKeys";
 import {
   Dialog,
@@ -168,7 +169,7 @@ export function NewAgentDialog() {
       const onboardingTextLink =
         invite.onboardingTextUrl ??
         invite.onboardingTextPath ??
-        `/api/invites/${invite.token}/onboarding.txt`;
+        apiPath(`/invites/${invite.token}/onboarding.txt`);
       const onboardingTextUrl = onboardingTextLink.startsWith("http")
         ? onboardingTextLink
         : `${base}${onboardingTextLink}`;

@@ -6,6 +6,7 @@ import { instanceSettingsApi } from "../../api/instanceSettings";
 import { heartbeatsApi } from "../../api/heartbeats";
 import { buildTranscript, getUIAdapter, onAdapterChange, type RunLogChunk, type TranscriptEntry } from "../../adapters";
 import { queryKeys } from "../../lib/queryKeys";
+import { API_BASE } from "../../lib/api-base";
 import { buildSameOriginWebSocketUrl } from "../../lib/websocket-url";
 
 const LOG_POLL_INTERVAL_MS = 2000;
@@ -281,7 +282,7 @@ export function useLiveRunTranscripts({
     const connect = () => {
       if (closed) return;
       const url = buildSameOriginWebSocketUrl(
-        `/api/companies/${encodeURIComponent(companyId)}/events/ws`,
+        `${API_BASE}/companies/${encodeURIComponent(companyId)}/events/ws`,
       );
       socket = new WebSocket(url);
 

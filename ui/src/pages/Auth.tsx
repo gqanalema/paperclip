@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "@/lib/router";
 import { authApi } from "../api/auth";
+import { apiPath } from "../lib/api-base";
 import { queryKeys } from "../lib/queryKeys";
 import { getRememberedInvitePath } from "../lib/invite-memory";
 import { Button } from "@/components/ui/button";
@@ -94,7 +95,7 @@ export function AuthPage() {
           <form
             className="mt-6 space-y-4"
             method="post"
-            action={mode === "sign_up" ? "/api/auth/sign-up/email" : "/api/auth/sign-in/email"}
+            action={apiPath(mode === "sign_up" ? "/auth/sign-up/email" : "/auth/sign-in/email")}
             onSubmit={(event) => {
               event.preventDefault();
               if (mutation.isPending) return;
