@@ -13,6 +13,7 @@ import {
 import type { DeploymentMode } from "@paperclipai/shared";
 import { Link } from "@/lib/router";
 import { authApi } from "@/api/auth";
+import { resolveServerEmittedApiPath } from "@/lib/api-base";
 import { queryKeys } from "@/lib/queryKeys";
 import { useSidebar } from "../context/SidebarContext";
 import { useTheme } from "../context/ThemeContext";
@@ -150,7 +151,7 @@ export function SidebarAccountMenu({
             aria-label="Open account menu"
           >
             <Avatar size="sm">
-              {session?.user.image ? <AvatarImage src={session.user.image} alt={displayName} /> : null}
+              {session?.user.image ? <AvatarImage src={resolveServerEmittedApiPath(session.user.image)} alt={displayName} /> : null}
               <AvatarFallback>{initials}</AvatarFallback>
             </Avatar>
             <span className="min-w-0 flex-1 truncate">{displayName}</span>
@@ -167,7 +168,7 @@ export function SidebarAccountMenu({
             <div className="flex items-start gap-3">
               <div className="rounded-2xl border-4 border-popover bg-popover p-0.5 shadow-sm">
                 <Avatar size="lg">
-                  {session?.user.image ? <AvatarImage src={session.user.image} alt={displayName} /> : null}
+                  {session?.user.image ? <AvatarImage src={resolveServerEmittedApiPath(session.user.image)} alt={displayName} /> : null}
                   <AvatarFallback>{initials}</AvatarFallback>
                 </Avatar>
               </div>

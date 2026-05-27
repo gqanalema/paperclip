@@ -867,7 +867,11 @@ export function CompanyImport() {
         body: `${result.company.name}: ${result.agents.length} agent${result.agents.length === 1 ? "" : "s"} processed.`,
       });
       // Force a fresh dashboard load so newly imported agents are immediately visible.
-      window.location.assign(`/${importedCompany.issuePrefix}/dashboard`);
+      // BASE_URL is Vite's `base` (root "/" standalone, "/admin/paperclip/"
+      // under the Infrakaihatsu embed); prepending preserves the embed prefix
+      // since this is a raw browser navigation that bypasses React Router.
+      const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
+      window.location.assign(`${baseUrl}/${importedCompany.issuePrefix}/dashboard`);
     },
     onError: (err) => {
       pushToast({

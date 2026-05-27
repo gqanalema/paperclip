@@ -23,6 +23,7 @@ import { buildCompanyUserInlineOptions, buildCompanyUserLabelMap, buildCompanyUs
 import { extractIssueTimelineEvents } from "../lib/issue-timeline-events";
 import { queryKeys } from "../lib/queryKeys";
 import { keepPreviousDataForSameQueryTail } from "../lib/query-placeholder-data";
+import { resolveServerEmittedApiPath } from "../lib/api-base";
 import { collectLiveIssueIds } from "../lib/liveIssueIds";
 import {
   hasLegacyIssueDetailQuery,
@@ -2816,10 +2817,17 @@ export function IssueDetail() {
 
   const handleChatImageClick = useCallback(
     (src: string) => {
-      // Try exact contentPath match first
-      let idx = imageAttachments.findIndex((a) => a.contentPath === src);
+      // Try exact contentPath match first. Compare normalized so the
+      // match still hits when `src` was emitted as /api/... but rendered
+      // under the embed as /admin/paperclip/api/... (see
+      // resolveServerEmittedApiPath in @/lib/api-base).
+      let idx = imageAttachments.findIndex(
+        (a) => resolveServerEmittedApiPath(a.contentPath) === src,
+      );
       if (idx < 0) {
         // Try matching by asset ID extracted from /api/assets/{assetId}/content URLs
+        // (regex is not anchored to the start, so /admin/paperclip/api/assets/.../content
+        // also matches under the embed).
         const assetMatch = src.match(/\/api\/assets\/([^/]+)\/content/);
         if (assetMatch) {
           idx = imageAttachments.findIndex((a) => a.assetId === assetMatch[1]);
@@ -3781,7 +3789,7 @@ export function IssueDetail() {
                 }}
               >
                 <img
-                  src={attachment.contentPath}
+                  src={resolveServerEmittedApiPath(attachment.contentPath)}
                   alt={attachment.originalFilename ?? "attachment"}
                   className="h-full w-full object-cover"
                   loading="lazy"
@@ -3842,7 +3850,7 @@ export function IssueDetail() {
               <div key={attachment.id} className="border border-border rounded-md p-2">
                 <div className="flex items-center justify-between gap-2">
                   <a
-                    href={attachment.contentPath}
+                    href={resolveServerEmittedApiPath(attachment.contentPath)}
                     target="_blank"
                     rel="noreferrer"
                     className="text-xs hover:underline truncate"

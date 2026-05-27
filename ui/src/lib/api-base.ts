@@ -49,3 +49,30 @@ export function apiPath(path: string): string {
   const normalized = path.startsWith("/") ? path : `/${path}`;
   return `${API_BASE}${normalized}`;
 }
+
+/**
+ * Rewrite a server-emitted absolute path that starts with `/api/...`
+ * so it matches the UI's current API_BASE. Use this at consumption
+ * sites where the server emits paths like `/api/attachments/<id>/content`
+ * or `/api/assets/<id>/content` (see server/src/routes/issues.ts and
+ * server/src/routes/assets.ts) and the UI renders them directly
+ * (<img src=>, <a href=>, image previews, markdown img/asset URLs).
+ *
+ * Standalone build: API_BASE is "/api" → no-op for "/api/..." paths.
+ * Embed build: API_BASE is "/admin/paperclip/api" → rewrites
+ * "/api/foo" to "/admin/paperclip/api/foo" so the request goes through
+ * the Infrakaihatsu reverse proxy instead of hitting Infrakaihatsu's
+ * own /api (a different backend).
+ *
+ * Existing persisted markdown content already contains the old
+ * "/api/..." paths; rewriting at render time avoids a DB migration.
+ *
+ * Non-/api paths (e.g. external URLs, app routes, hash links) are
+ * returned untouched.
+ */
+export function resolveServerEmittedApiPath(serverPath: string): string {
+  if (serverPath.startsWith("/api/") || serverPath === "/api") {
+    return `${API_BASE}${serverPath.slice("/api".length)}`;
+  }
+  return serverPath;
+}

@@ -4,6 +4,7 @@ import { Camera, LoaderCircle, Save, Trash2, UserRoundPen } from "lucide-react";
 import type { AuthSession, CurrentUserProfile, UpdateCurrentUserProfile } from "@paperclipai/shared";
 import { authApi } from "@/api/auth";
 import { assetsApi } from "@/api/assets";
+import { resolveServerEmittedApiPath } from "@/lib/api-base";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
 import { useCompany } from "../context/CompanyContext";
 import { queryKeys } from "../lib/queryKeys";
@@ -185,7 +186,7 @@ export function ProfileSettings() {
                     {uploadAvatarMutation.isPending ? <LoaderCircle className="size-4 animate-spin" /> : <Camera className="size-4" />}
                   </span>
                   <Avatar size="lg" className="data-[size=lg]:size-24 ring-4 ring-background shadow-xl">
-                    {currentImage ? <AvatarImage src={currentImage} alt={currentName} /> : null}
+                    {currentImage ? <AvatarImage src={resolveServerEmittedApiPath(currentImage)} alt={currentName} /> : null}
                     <AvatarFallback>{initials}</AvatarFallback>
                   </Avatar>
                 </label>

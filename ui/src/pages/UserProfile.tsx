@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, UserRound } from "lucide-react";
 import type { UserProfileDailyPoint, UserProfileWindowStats } from "@paperclipai/shared";
 import { Link, useParams } from "@/lib/router";
+import { resolveServerEmittedApiPath } from "@/lib/api-base";
 import { userProfilesApi } from "../api/userProfiles";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import { EmptyState } from "../components/EmptyState";
@@ -266,7 +267,7 @@ export function UserProfile() {
       <section className="flex flex-col gap-7 border-b border-border pb-8">
         <div className="flex flex-wrap items-center gap-5">
           <Avatar className="size-16 border border-border" size="lg">
-            {data.user.image ? <AvatarImage src={data.user.image} alt={displayName} /> : null}
+            {data.user.image ? <AvatarImage src={resolveServerEmittedApiPath(data.user.image)} alt={displayName} /> : null}
             <AvatarFallback className="text-lg font-semibold">{initials(displayName)}</AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1">
