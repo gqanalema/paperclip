@@ -36,19 +36,19 @@ services:
     runtime: docker
     plan: starter
     region: oregon
-    # Codex round-5 correction: the local remote is paperclipai/paperclip,
-    # and the gqanalema/paperclip placeholder used during Wave 1 inventory
-    # 404s. Render needs a repo it can read. Options for the operator
-    # before `render blueprint apply`:
-    #   (a) Use paperclipai/paperclip directly — requires a Render
-    #       GitHub app install with read access to that org, or a
-    #       deploy key wired into Render.
-    #   (b) Fork to a repo the operator controls (e.g. gqanalema/paperclip-fork)
-    #       and update this URL accordingly. Recommended if Render does
-    #       not yet have access to the paperclipai org.
-    # Document the final choice in ops/render-deployment.md before
-    # applying the blueprint.
-    repo: https://github.com/paperclipai/paperclip
+    # Wave 7 PR-6 follow-up: this blueprint deploys the Infrakaihatsu
+    # /admin/paperclip embed, which requires the path-prefix-aware UI
+    # build from claude/admin-prefix-build (Vite `base`, configurable
+    # API base, router basename). That branch lives on the fork
+    # (gqanalema/paperclip); upstream paperclipai/paperclip does NOT
+    # contain it. Point Render at the fork so the embed build is what
+    # actually gets deployed.
+    #
+    # To deploy standalone Paperclip from upstream instead, restore
+    # the upstream URL AND pass `--build-arg PAPERCLIP_EMBED_BASE=/
+    # --build-arg VITE_API_BASE=/api` (see Dockerfile build stage).
+    repo: https://github.com/gqanalema/paperclip
+    branch: claude/admin-prefix-build
     rootDir: .
     dockerfilePath: ./Dockerfile
     healthCheckPath: /api/health

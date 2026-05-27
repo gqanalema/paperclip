@@ -46,6 +46,16 @@ FROM base AS build
 WORKDIR /app
 COPY --from=deps /app /app
 COPY . .
+# Wave 7 PR-6 (Infrakaihatsu /admin/paperclip embed): UI is built with
+# these paths baked in. Vite reads PAPERCLIP_EMBED_BASE for the asset
+# `base`; api-base.ts reads VITE_API_BASE for REST + WebSocket calls.
+# Defaults below match the Infrakaihatsu embed deployment; pass
+# --build-arg PAPERCLIP_EMBED_BASE=/ VITE_API_BASE=/api to build a
+# standalone Paperclip from this branch.
+ARG PAPERCLIP_EMBED_BASE=/admin/paperclip/
+ARG VITE_API_BASE=/admin/paperclip/api
+ENV PAPERCLIP_EMBED_BASE=$PAPERCLIP_EMBED_BASE \
+    VITE_API_BASE=$VITE_API_BASE
 RUN pnpm --filter @paperclipai/ui build
 RUN pnpm --filter @paperclipai/plugin-sdk build
 RUN pnpm --filter @paperclipai/server build

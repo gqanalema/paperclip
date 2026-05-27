@@ -51,11 +51,20 @@ function CompanyAwareBreadcrumbProvider({ children }: { children: React.ReactNod
   return <BreadcrumbProvider companyName={selectedCompany?.name ?? null}>{children}</BreadcrumbProvider>;
 }
 
+// Wave 7 PR-6: derive the React Router basename from Vite's `base`
+// so absolute paths in <Link>, <Navigate>, and useNavigate (all routed
+// through the wrapper in `@/lib/router`) get the embed prefix prepended
+// automatically. Standalone build: BASE_URL is "/", basename becomes ""
+// (React Router treats empty as root). Embed build: BASE_URL is
+// "/admin/paperclip/", basename becomes "/admin/paperclip" (no trailing
+// slash — React Router rejects that).
+const ROUTER_BASENAME = import.meta.env.BASE_URL.replace(/\/$/, "");
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <BrowserRouter>
+        <BrowserRouter basename={ROUTER_BASENAME}>
           <CompanyProvider>
             <EditorAutocompleteProvider>
               <ToastProvider>
