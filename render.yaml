@@ -1,0 +1,173 @@
+# Render Blueprint — Paperclip self-hosted control plane.
+#
+# Produces:
+#   - Web service `paperclip` (Docker)  — Express/TS server + UI on :3100
+#   - Managed Postgres `paperclip-postgres` — Drizzle schema target
+#
+# Region mirrors the Analema/Infrakaihatsu backend (oregon) so the
+# Infrak backend's `/api/admin/paperclip/*` proxy talks to Paperclip
+# over Render's internal network.
+#
+# Auth model reminder (see ops/render-deployment.md):
+#   The Paperclip API is gated by Better Auth sessions OR a board API
+#   key (bearer token, sha256-hashed and stored in `board_api_keys`).
+#   There is NO env-driven service token. The supported release flow
+#   (Codex round-9 correction):
+#     1. Path A — preserve + migrate local Paperclip state into the
+#        hosted Postgres BEFORE relying on the board-claim flow. An
+#        empty DB emits NO claim URL (initializeBoardClaimChallenge
+#        in server/src/board-claim.ts:42-65 short-circuits when
+#        instance_user_roles.length === 0). The pg_dump restore
+#        brings in the `local-board` placeholder admin row; the
+#        post-restore RESTART triggers the initializer against the
+#        restored state and only THEN is a board-claim URL logged.
+#     2. Open that claim URL, complete the bootstrap_ceo claim once,
+#     3. mint a board API key from inside the Paperclip UI,
+#     4. paste that key into the Infrak backend's
+#        `PAPERCLIP_SERVICE_TOKEN` env var on Render.
+#   Cold-start (no local state restored) is NOT supported by the
+#   ops runbook in this release — see ops/render-deployment.md.
+#   Board API keys expire every 30 days (see BOARD_API_KEY_TTL_MS) —
+#   rotation is a documented runbook step.
+
+services:
+  - type: web
+    name: paperclip
+    runtime: docker
+    plan: starter
+    region: oregon
+    # Codex round-5 correction: the local remote is paperclipai/paperclip,
+    # and the gqanalema/paperclip placeholder used during Wave 1 inventory
+    # 404s. Render needs a repo it can read. Options for the operator
+    # before `render blueprint apply`:
+    #   (a) Use paperclipai/paperclip directly — requires a Render
+    #       GitHub app install with read access to that org, or a
+    #       deploy key wired into Render.
+    #   (b) Fork to a repo the operator controls (e.g. gqanalema/paperclip-fork)
+    #       and update this URL accordingly. Recommended if Render does
+    #       not yet have access to the paperclipai org.
+    # Document the final choice in ops/render-deployment.md before
+    # applying the blueprint.
+    repo: https://github.com/paperclipai/paperclip
+    rootDir: .
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    autoDeploy: true
+    # The Dockerfile entrypoint listens on PORT 3100 by default.
+    # Render injects PORT automatically; the entrypoint reads PORT
+    # via the existing config loader, so no extra plumbing needed.
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      # External Postgres — disables the embedded-postgres path in
+      # server/src/index.ts. Migrations are applied at startup because
+      # the process is non-TTY (PAPERCLIP_MIGRATION_AUTO_APPLY-equivalent
+      # branch).
+      - key: DATABASE_URL
+        fromDatabase:
+          name: paperclip-postgres
+          property: connectionString
+      - key: PAPERCLIP_MIGRATION_AUTO_APPLY
+        value: "true"
+      # Authenticated + public — login required, Better Auth enabled.
+      # Codex round-9 correction: the board-claim URL is NOT emitted
+      # on first start against an empty DB; it is emitted only on a
+      # restart that follows the Path A pg_dump restore (when
+      # instance_user_roles already contains the local-board placeholder).
+      # See ops/render-deployment.md "Onboarding the first admin".
+      - key: PAPERCLIP_DEPLOYMENT_MODE
+        value: authenticated
+      - key: PAPERCLIP_DEPLOYMENT_EXPOSURE
+        value: public
+      # Codex round-5 correction: PAPERCLIP_BIND=loopback would bind the
+      # process to 127.0.0.1 inside the container, making it unreachable
+      # from Render's edge proxy and the /api/health probe. The allowed
+      # BIND_MODES (packages/shared/src/constants.ts) are
+      # "loopback" | "lan" | "tailnet" | "custom".
+      # - loopback: local_trusted dev only (server/src/index.ts:446 rejects
+      #   loopback in authenticated mode anyway).
+      # - lan: binds 0.0.0.0; correct for any cloud reverse-proxy setup
+      #   where Render terminates TLS in front of the container.
+      # - tailnet/custom: reserved for Tailscale or bespoke bind hosts.
+      - key: PAPERCLIP_BIND
+        value: lan
+      # Public API URL — set this AFTER the service URL is known on
+      # first deploy, then redeploy. PAPERCLIP_API_URL is what spawned
+      # agent processes use to reach the control plane (see
+      # server/src/index.ts:636). Set to the Render URL post-deploy.
+      - key: PAPERCLIP_API_URL
+        sync: false
+      # Browser-facing public URL — feeds Better Auth cookie domain,
+      # board-mutation-guard trusted origins, and authPublicBaseUrl
+      # auto-derivation (server/src/config.ts:199-210). Must be set
+      # together with PAPERCLIP_API_URL after first deploy. Setting
+      # both to the same Render URL is the canonical pattern.
+      - key: PAPERCLIP_PUBLIC_URL
+        sync: false
+      # Codex round-6 fix: authenticated + public exposure requires
+      # auth.baseUrlMode=explicit AND a non-empty authPublicBaseUrl,
+      # or the server refuses to boot (server/src/index.ts:459-464).
+      # Explicit mode + PAPERCLIP_AUTH_PUBLIC_BASE_URL satisfies both.
+      - key: PAPERCLIP_AUTH_BASE_URL_MODE
+        value: explicit
+      - key: PAPERCLIP_AUTH_PUBLIC_BASE_URL
+        sync: false
+      # Codex round-6 fix: Better Auth refuses to initialize without
+      # a 32+ byte secret (server/src/auth/better-auth.ts:89). Generate
+      # via `openssl rand -base64 32` and paste into the Render
+      # dashboard. PAPERCLIP_AGENT_JWT_SECRET is an accepted alias;
+      # we standardize on BETTER_AUTH_SECRET to avoid two-secrets drift.
+      - key: BETTER_AUTH_SECRET
+        sync: false
+      # Persistent home — Paperclip writes uploaded assets, agent
+      # workspaces, the embedded PG dir (unused here), and the secrets
+      # master.key under PAPERCLIP_HOME. Without a disk, the
+      # local_encrypted secrets provider would regenerate a new
+      # master.key on every restart and silently invalidate every
+      # stored secret. The disk also backs storageProvider=local_disk
+      # (the default unless overridden — see below).
+      - key: PAPERCLIP_HOME
+        value: /paperclip
+      - key: PAPERCLIP_INSTANCE_ID
+        value: default
+      # Secrets master key — set manually in the Render dashboard with
+      # `openssl rand -base64 32`. When this env is present, Paperclip
+      # skips file-based key generation entirely (see
+      # server/src/secrets/local-encrypted-provider.ts). Strongly
+      # recommended for production so the key survives disk loss.
+      - key: PAPERCLIP_SECRETS_MASTER_KEY
+        sync: false
+      # Storage backend — defaults to local_disk on the mounted disk.
+      # Migrate to S3 in a later wave if asset volume warrants it.
+      - key: PAPERCLIP_STORAGE_PROVIDER
+        value: local_disk
+      # Pre-wired Analema company id for handoff visibility. Paperclip
+      # itself does NOT read this env var. The Analema company row is
+      # restored into the hosted Postgres by the Path A pg_dump migration
+      # (see ops/render-deployment.md). The bootstrap_ceo claim flow does
+      # NOT create a company — it only attaches the operator as admin to
+      # the restored `local-board` placeholder, after which Better Auth
+      # sessions and board API keys gate the existing restored state.
+      # This env value is preserved here so the Infrak backend's
+      # `PAPERCLIP_COMPANY_ID` lines up with the restored company id.
+      - key: PAPERCLIP_COMPANY_ID
+        value: f41d00fa-0d70-4f53-b7f4-35c0df3814d8
+      # LLM provider keys for the bundled Claude/Codex/Gemini adapters.
+      # Set in the Render dashboard; sync:false keeps them out of the
+      # blueprint file.
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+    disk:
+      name: paperclip-home
+      mountPath: /paperclip
+      sizeGB: 10
+
+databases:
+  - name: paperclip-postgres
+    plan: starter
+    region: oregon
+    postgresMajorVersion: "16"

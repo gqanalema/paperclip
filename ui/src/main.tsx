@@ -24,7 +24,16 @@ initPluginBridge(React, ReactDOM);
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js");
+    // Wave 7 PR-6: register the SW under Vite's `base` so the
+    // standalone build keeps registering at "/sw.js" and the embed
+    // build registers at "/admin/paperclip/sw.js" — matching where
+    // Vite emits the file in `dist/` and serves it through the
+    // reverse proxy. `BASE_URL` is auto-populated by Vite from the
+    // `base` config in `vite.config.ts` and always ends with "/".
+    // The SW scope defaults to its containing directory, so embed
+    // mode scopes the SW to `/admin/paperclip/` only — exactly what
+    // we want (don't intercept Infrakaihatsu's own routes).
+    navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`);
   });
 }
 

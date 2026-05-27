@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { CompanyPatternIcon } from "@/components/CompanyPatternIcon";
 import { useCompany } from "@/context/CompanyContext";
 import { Link, useNavigate, useParams } from "@/lib/router";
+import { apiPath } from "@/lib/api-base";
 import { accessApi } from "../api/access";
 import { authApi } from "../api/auth";
 import { companiesListQueryOptions } from "../api/companies-query";
@@ -693,7 +694,7 @@ export function InviteLandingPage() {
                 <form
                   className="space-y-4"
                   method="post"
-                  action={authMode === "sign_up" ? "/api/auth/sign-up/email" : "/api/auth/sign-in/email"}
+                  action={apiPath(authMode === "sign_up" ? "/auth/sign-up/email" : "/auth/sign-in/email")}
                   onSubmit={(event) => {
                     event.preventDefault();
                     if (authMutation.isPending) return;
