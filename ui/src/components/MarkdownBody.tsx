@@ -5,6 +5,7 @@ import Markdown, { defaultUrlTransform, type Components, type Options } from "re
 import remarkGfm from "remark-gfm";
 import { cn } from "../lib/utils";
 import { Link } from "@/lib/router";
+import { resolveServerEmittedApiPath } from "@/lib/api-base";
 import { useTheme } from "../context/ThemeContext";
 import { mentionChipInlineStyle, parseMentionChipHref } from "../lib/mention-chips";
 import { issuesApi } from "../api/issues";
@@ -663,9 +664,11 @@ export function MarkdownBody({
                 : parsed.kind === "user"
                   ? "/company/settings/access"
                   : `/agents/${parsed.agentId}`;
+        // Route through React Router so the embed basename is preserved
+        // and click doesn't trigger a full-page reload escaping the embed.
         return (
-          <a
-            href={targetHref}
+          <Link
+            to={targetHref}
             className={cn(
               "paperclip-mention-chip",
               `paperclip-mention-chip--${parsed.kind}`,
@@ -675,11 +678,33 @@ export function MarkdownBody({
             style={{ ...mergeWrapStyle(linkStyle as React.CSSProperties | undefined), ...mentionChipInlineStyle(parsed) }}
           >
             {linkChildren}
-          </a>
+          </Link>
         );
       }
       const isGitHubLink = isGitHubUrl(href);
       const isExternal = isExternalHttpUrl(href);
+      // Internal absolute hrefs in user-supplied markdown need different
+      // handling depending on whether they're an app route or a server
+      // API/asset URL. App routes (e.g. `/agents/123`, `/issues/X`) go
+      // through React Router so the embed basename is prepended and we
+      // don't trigger a full-page reload. /api/* paths are server URLs
+      // (attachments, assets) — never app routes — so they keep raw <a>
+      // but get rewritten through resolveServerEmittedApiPath so they
+      // resolve to /admin/paperclip/api/* under the embed.
+      const isInternalAbsolute = !!href && href.startsWith("/") && !href.startsWith("//");
+      const isServerApiPath = isInternalAbsolute && (href!.startsWith("/api/") || href === "/api");
+      if (isInternalAbsolute && !isExternal && !isServerApiPath) {
+        return (
+          <Link
+            to={href!}
+            rel="noreferrer"
+            style={mergeWrapStyle(linkStyle as React.CSSProperties | undefined)}
+          >
+            {linkChildren}
+          </Link>
+        );
+      }
+      const resolvedHref = isServerApiPath ? resolveServerEmittedApiPath(href!) : href;
       const leadingIcon = isGitHubLink ? (
         <Github aria-hidden="true" className="mr-1 inline h-3.5 w-3.5 align-[-0.125em]" />
       ) : null;
@@ -688,7 +713,7 @@ export function MarkdownBody({
       ) : null;
       return (
         <a
-          href={href}
+          href={resolvedHref}
           {...(isExternal
             ? { target: "_blank", rel: "noopener noreferrer" }
             : { rel: "noreferrer" })}
@@ -699,21 +724,23 @@ export function MarkdownBody({
       );
     },
   };
-  if (resolveImageSrc || onImageClick) {
-    components.img = ({ node: _node, src, alt, ...imgProps }) => {
-      const resolved = resolveImageSrc && src ? resolveImageSrc(src) : null;
-      const finalSrc = resolved ?? src;
-      return (
-        <img
-          {...imgProps}
-          src={finalSrc}
-          alt={alt ?? ""}
-          onClick={onImageClick && finalSrc ? (e) => { e.preventDefault(); onImageClick(finalSrc); } : undefined}
-          style={onImageClick ? { cursor: "pointer", ...(imgProps.style as React.CSSProperties | undefined) } : imgProps.style as React.CSSProperties | undefined}
-        />
-      );
-    };
-  }
+  // Always override img so server-emitted `/api/...` srcs get rewritten
+  // through resolveServerEmittedApiPath (matters under the Infrakaihatsu
+  // /admin/paperclip embed). Callers that supply resolveImageSrc /
+  // onImageClick get those behaviors layered on top.
+  components.img = ({ node: _node, src, alt, ...imgProps }) => {
+    const resolved = resolveImageSrc && src ? resolveImageSrc(src) : null;
+    const finalSrc = resolved ?? (typeof src === "string" ? resolveServerEmittedApiPath(src) : src);
+    return (
+      <img
+        {...imgProps}
+        src={finalSrc}
+        alt={alt ?? ""}
+        onClick={onImageClick && finalSrc ? (e) => { e.preventDefault(); onImageClick(finalSrc); } : undefined}
+        style={onImageClick ? { cursor: "pointer", ...(imgProps.style as React.CSSProperties | undefined) } : imgProps.style as React.CSSProperties | undefined}
+      />
+    );
+  };
 
   return (
     <div

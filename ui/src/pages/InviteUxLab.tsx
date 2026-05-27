@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CompanyPatternIcon } from "@/components/CompanyPatternIcon";
+import { Link } from "@/lib/router";
 import { cn } from "@/lib/utils";
 import {
   ArrowRight,
@@ -423,9 +424,9 @@ function InviteResultPreview({
           <>
             <div className="border border-zinc-800 p-3">
               <p className="mb-1 text-xs text-zinc-500">Approval page</p>
-              <a className="text-sm text-zinc-200 underline underline-offset-2" href="/company/settings/members">
+              <Link className="text-sm text-zinc-200 underline underline-offset-2" to="/company/settings/members">
                 Company Settings → Members
-              </a>
+              </Link>
             </div>
             <p className="text-xs text-zinc-500">
               Refresh this page after you&apos;ve been approved — you&apos;ll be redirected automatically.
@@ -618,9 +619,9 @@ function CompanyInvitesPreview() {
                 Review invite status, role, inviter, and any linked join request.
               </CardDescription>
             </div>
-            <a href="/inbox/requests" className="text-sm underline underline-offset-4">
+            <Link to="/inbox/requests" className="text-sm underline underline-offset-4">
               Open join request queue
-            </a>
+            </Link>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -652,9 +653,9 @@ function CompanyInvitesPreview() {
                     <td className="px-5 py-3 align-top text-muted-foreground">{invite.createdAt}</td>
                     <td className="px-5 py-3 align-top">
                       {invite.relatedLabel === "Review request" ? (
-                        <a href="/inbox/requests" className="underline underline-offset-4">
+                        <Link to="/inbox/requests" className="underline underline-offset-4">
                           {invite.relatedLabel}
-                        </a>
+                        </Link>
                       ) : (
                         <span className="text-muted-foreground">{invite.relatedLabel}</span>
                       )}

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Dialog as DialogPrimitive } from "radix-ui";
 import { ChevronLeft, ChevronRight, Download, X } from "lucide-react";
 import type { IssueAttachment } from "@paperclipai/shared";
+import { resolveServerEmittedApiPath } from "@/lib/api-base";
 
 interface ImageGalleryModalProps {
   images: IssueAttachment[];
@@ -81,7 +82,7 @@ export function ImageGalleryModal({
                 {currentIndex + 1} / {images.length}
               </span>
               <a
-                href={current.contentPath}
+                href={resolveServerEmittedApiPath(current.contentPath)}
                 download={current.originalFilename ?? "image"}
                 className="text-white/50 hover:text-white transition-colors"
                 title="Download"
@@ -120,7 +121,7 @@ export function ImageGalleryModal({
             <div className="flex-1 flex items-center justify-center min-w-0 min-h-0 h-full px-2">
               <img
                 ref={imageRef}
-                src={current.contentPath}
+                src={resolveServerEmittedApiPath(current.contentPath)}
                 alt={current.originalFilename ?? "attachment"}
                 className="max-w-full max-h-full object-contain select-none rounded-lg"
                 draggable={false}
